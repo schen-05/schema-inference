@@ -328,7 +328,7 @@
     ;;   [:_ :s-var])
     
     ; attempt 2
-    ;;(and (= (:type a) :s-var) (= (:type b) :s-var)) [:s-var :s-var]
+    (and (= (:type a) :s-var) (= (:type b) :s-var)) [:s-var :s-var]
 
     ; swapping the order of this breaks stuff -- why?
     (= (:type a) :s-var) [:s-var :_]
@@ -373,10 +373,6 @@
      :schema-1     s-var
      :schema-2    schema}
 
-    ; put this somewhere
-    ;; (if (and (= (:type s-var) :s-var) (= (:type schema) :s-var))
-    ;;   (if (>= (count (:typeclasses s-var)) (count (:typeclasses schema)))))
-
     ;; Typeclass check
     (and (not-empty typeclasses)
          (not (satisfies-all-typeclasses? schema typeclasses))) 
@@ -390,13 +386,13 @@
     :else {sym schema}))
 
 ;; attempt 2 (uncomment line in dispatch too)
-;; (defmethod mgu [:s-var :s-var]
-;;   ;; "Unifies a schema variable `a` with schema variable `b`."
-;;   [a b]
-;;   (if (>= (count (:typeclasses a)) (count (:typeclasses b)))  
-;;     (bind-var a b)
-;;     (bind-var b a))
-;; )
+(defmethod mgu [:s-var :s-var]
+  ;; "Unifies a schema variable `a` with schema variable `b`."
+  [a b]
+  (if (<= (count (:typeclasses a)) (count (:typeclasses b)))  
+    (bind-var a b)
+    (bind-var b a))
+  )
 
 (defmethod mgu [:s-var :_]
   ;; "Unifies a schema variable `a` with schema `b`."

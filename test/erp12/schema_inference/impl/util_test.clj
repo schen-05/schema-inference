@@ -305,9 +305,11 @@
         (is (= {'a s-var-b} result)))
       (let [s-var-a {:type :s-var :sym 'a :typeclasses [:number :countable]} ; a is more specific
             s-var-b {:type :s-var :sym 'b :typeclasses [:number]}
-            result (u/mgu s-var-b s-var-a)] ; This should succeed, 'b gets bound to 'a
+            result (u/mgu s-var-b s-var-a)
+            result2 (u/mgu s-var-a s-var-b)] ; This should succeed, 'b gets bound to 'a
             ; ^ swapped a and b in mgu call
-        (is (= {'b s-var-a} result))))
+        (is (= {'b s-var-a} result))
+        (is (= {'b s-var-a} result2))))
     
     (testing "occurs check with typeclasses"
       (let [s-var {:type :s-var :sym 'a :typeclasses [:number]}

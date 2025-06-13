@@ -291,30 +291,43 @@
           (is (= res1 {'a s-var-num-comp}))
           )
 
-        (let [res2 (u/mgu s-var-num-comp s-var-num)]
-           ;; (bind-var s-var-num-comp s-var-num): s-var-num satisfies [:number :comparable] from s-var-num-comp? No.
-          (is (u/mgu-failure? res2))
-          (is (= (:mgu-failure res2) :typeclass-mismatch))
-          (is (= (:missing-typeclasses res2) [:comparable]))))
+        ; old order-dependent tests:
+        ;; (let [res2 (u/mgu s-var-num-comp s-var-num)]
+        ;;    ;; (bind-var s-var-num-comp s-var-num): s-var-num satisfies [:number :comparable] from s-var-num-comp? No.
+        ;;   (is (u/mgu-failure? res2))
+        ;;   (is (= (:mgu-failure res2) :typeclass-mismatch))
+        ;;   (is (= (:missing-typeclasses res2) [:comparable]))) 
+        (let [sva s-var-num 
+              svb s-var-num-comp 
+              res2 (u/mgu sva svb)]
+          (is (not (u/mgu-failure? res2)))
+          (is (= {'a svb} res2))))
 
       (testing "s-var a [:number :comparable] with s-var b [:number]"
-        (let [result (u/mgu s-var-num-comp s-var-num)]
-          (is (u/mgu-failure? result))
-          (is (= (:mgu-failure result) :typeclass-mismatch))
-          (is (= (:schema-1 result) s-var-num-comp))
-          (is (= (:schema-2 result) s-var-num))
-          (is (= (:missing-typeclasses result) [:comparable]))))
+        ; old order-dependent tests:
+        ;; (let [result (u/mgu s-var-num-comp s-var-num)]
+        ;;   (is (u/mgu-failure? result))
+        ;;   (is (= :typeclass-mismatch (:mgu-failure result)))
+        ;;   (is (= s-var-num-comp (:schema-1 result)))
+        ;;   (is (= s-var-num (:schema-2 result)))
+        ;;   (is (= [:comparable] (:missing-typeclasses result)))) 
+        (let [sva s-var-num
+              svb s-var-num-comp
+              result (u/mgu sva svb)]
+          (is (not (u/mgu-failure? result)))
+          (is (= {'a s-var-num-comp} result))))
 
       (testing "s-var a [:number] with s-var b [] (no typeclasses)"
         ;; s-var-any satisfies [:number]? Yes, because it's unconstrained.
         (let [result1 (u/mgu s-var-num s-var-any)]
-          (is (not (u/mgu-failure? result1)))
-          (is (= result1 {'a s-var-any})))
+          (is (not (u/mgu-failure? result1))) 
+          ;; (is (= {'a s-var-any} result1)) ; old order-dependent test
+          (is (= {'d s-var-num} result1)))
 
         ;; s-var-num satisfies []? Yes.
         (let [result2 (u/mgu s-var-any s-var-num)]
           (is (not (u/mgu-failure? result2)))
-          (is (= result2 {'d s-var-num})))))
+          (is (= {'d s-var-num} result2)))))
 
     (testing "Unifying s-var with typeclass against a concrete type not in typeclass"
       (let [s-var-countable {:type :s-var :sym 'a :typeclasses [:countable]}
@@ -350,12 +363,17 @@
       ;; s-var 'a' requires [:number :comparable]
       ;; s-var 'b' has constraints [:number] (less specific)
       ;; (mgu 'a 'b) -> bind 'a to 'b: does 'b satisfy [:number :comparable]? No. Fails.
-      (let [sva {:type :s-var :sym 'a :typeclasses [:number :comparable]}
-            svb {:type :s-var :sym 'b :typeclasses [:number]}]
-        (let [result (u/mgu sva svb)]
-          (is (u/mgu-failure? result))
-          (is (= :typeclass-mismatch (:mgu-failure result)))
-          (is (= (:missing-typeclasses result) [:comparable])))))
+      (let [sva {:type :s-var :sym 'a :typeclasses [:number :countable]}
+            svb {:type :s-var :sym 'b :typeclasses [:number]}
+            result (u/mgu sva svb)]
+        ; old order-dependent tests:
+        ;; (is (u/mgu-failure? result))
+        ;; (is (= :typeclass-mismatch (:mgu-failure result)))
+        ;; (is (= [:countable] (:missing-typeclasses result))) 
+        (is (not (u/mgu-failure? result))) 
+        (is (= {'b sva}
+               result))
+        ))
   ))
 
 (deftest infer-schema-typeclass-tests
