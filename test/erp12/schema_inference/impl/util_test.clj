@@ -117,7 +117,8 @@
                                        :output {:type :s-var :sym 'y}}})))))
 
 (deftest free-type-vars-env-test
-  (is (= (u/free-type-vars-env {'a {:type   :scheme
+  (is (= #{'x}
+         (u/free-type-vars-env {'a {:type   :scheme
                                     :s-vars [{:sym 'z}]
                                     :body   {:type  :vector
                                              :child {:type :s-var :sym 'x}}}
@@ -125,19 +126,19 @@
                                     :s-vars [{:sym 'x}]
                                     :body   {:type  :set
                                              :child {:type :s-var :sym 'x}}}})
-         #{'x})))
+         )))
 
 (deftest instantiate-test
-  (is (= (u/instantiate {:type 'int?})
-         {:type 'int?}))
-  (is (= (u/instantiate {:type :s-var :sym 'x})
-         {:type :s-var :sym 'x}))
+  (is (= {:type 'int?}
+         (u/instantiate {:type 'int?})))
+  (is (= {:type :s-var :sym 'x}
+         (u/instantiate {:type :s-var :sym 'x})))
   (let [s (u/instantiate {:type   :scheme
                           :s-vars [{:sym 'x}]
                           :body   {:type  :vector
                                    :child {:type :s-var :sym 'x}}})]
-    (is (= (:type s) :vector))
-    (is (= (get-in s [:child :type]) :s-var))
+    (is (= :vector (:type s)))
+    (is (= :s-var (get-in s [:child :type])))
     (is (str/starts-with? (name (get-in s [:child :sym])) "s-")))
   
   (testing "scheme with typeclasses"
@@ -149,14 +150,14 @@
           children (:children instantiated)
           s-var1 (first children)
           s-var2 (second children)]
-      (is (= (:type instantiated) :tuple))
-      (is (= (count children) 2))
-      (is (= (:type s-var1) :s-var))
-      (is (not= (:sym s-var1) 'x))             ; Fresh symbol
-      (is (= (:typeclasses s-var1) [:number]))
-      (is (= (:type s-var2) :s-var))
-      (is (not= (:sym s-var2) 'y))             ; Fresh symbol
-      (is (= (:typeclasses s-var2) [:comparable]))))
+      (is (= :tuple (:type instantiated)))
+      (is (= 2 (count children)))
+      (is (= :s-var (:type s-var1)))
+      (is (not= 'x (:sym s-var1)))             ; Fresh symbol
+      (is (= [:number] (:typeclasses s-var1)))
+      (is (= :s-var (:type s-var2)))
+      (is (not= 'y (:sym s-var2)))             ; Fresh symbol
+      (is (= [:comparable] (:typeclasses s-var2)))))
   
   (testing "scheme with s-var having no typeclasses"
     (let [scheme {:type   :scheme
@@ -164,8 +165,8 @@
                   :body   {:type :s-var :sym 'z'}}
           instantiated (u/instantiate scheme)
           fresh-s-var-typeclasses (:typeclasses instantiated)]
-      (is (= (:type instantiated) :s-var))
-      (is (not= (:sym instantiated) 'z'))
+      (is (= :s-var (:type instantiated)))
+      (is (not= 'z' (:sym instantiated)))
       (is (or (nil? fresh-s-var-typeclasses) (empty? fresh-s-var-typeclasses))))))
 
 (deftest generalize-test
@@ -190,12 +191,12 @@
                                            {:type :s-var :sym 'z :typeclasses [:comparable]}]}
           generalized (u/generalize env schema-to-generalize)
           s-vars-map (into {} (map (juxt :sym identity) (:s-vars generalized)))]
-      (is (= (:type generalized) :scheme))
-      (is (= (count (:s-vars generalized)) 2))
-      (is (= (get-in s-vars-map ['y :typeclasses]) [:number]))
-      (is (= (get-in s-vars-map ['z :typeclasses]) [:comparable]))
+      (is (= :scheme (:type generalized)))
+      (is (= 2 (count (:s-vars generalized))))
+      (is (= [:number] (get-in s-vars-map ['y :typeclasses])))
+      (is (= [:comparable] (get-in s-vars-map ['z :typeclasses])))
       ;; generalize sorts s-vars by sym, so we sort original schema's s-vars for comparison if needed
-      (is (= (:body generalized) schema-to-generalize))))
+      (is (= schema-to-generalize (:body generalized)))))
   
   (testing "generalize schema where some s-vars with typeclasses are also in env"
     (let [env {'y {:type :s-var :sym 'y :typeclasses [:number]}} ; 'y is in env
@@ -204,11 +205,11 @@
                                            {:type :s-var :sym 'z :typeclasses [:comparable]}]}
           generalized (u/generalize env schema-to-generalize)
           s-vars-map (into {} (map (juxt :sym identity) (:s-vars generalized)))]
-      (is (= (:type generalized) :scheme))
-      (is (= (count (:s-vars generalized)) 1))
+      (is (= :scheme (:type generalized)))
+      (is (= 1 (count (:s-vars generalized))))
       (is (nil? (get s-vars-map 'y))) ; 'y should not be generalized
-      (is (= (get-in s-vars-map ['z :typeclasses]) [:comparable]))
-      (is (= (:body generalized) schema-to-generalize))))
+      (is (= [:comparable] (get-in s-vars-map ['z :typeclasses])))
+      (is (= schema-to-generalize (:body generalized)))))
   
   (testing "generalize a scheme (should instantiate first)"
     (let [env {}
@@ -219,53 +220,54 @@
           original-body (:body scheme-to-generalize)]
       ;; Since 'x' is bound by the input scheme, after instantiation,
       ;; the new s-var (e.g., s-1) will be free relative to env and generalized.
-      (is (= (:type generalized) :scheme))
-      (is (= (count (:s-vars generalized)) 1))
+      (is (= :scheme (:type generalized)))
+      (is (= 1 (count (:s-vars generalized))))
+
       (let [generalized-s-var (first (:s-vars generalized))]
         ;; The s-var in the new scheme should be the fresh var from instantiation
-        (is (not= (:sym generalized-s-var) 'x))
+        (is (not= 'x (:sym generalized-s-var)))
         (is (str/starts-with? (name (:sym generalized-s-var)) "s-"))
-        (is (= (:typeclasses generalized-s-var) [:number]))
+        (is (= [:number] (:typeclasses generalized-s-var)))
         ;; The body of the new scheme should be the instantiated body of the input scheme
-        (is (= (:type (:body generalized)) :s-var))
-        (is (= (:sym (:body generalized)) (:sym generalized-s-var))) ; Body uses the fresh, generalized s-var
-        (is (= (:typeclasses (:body generalized)) [:number]))))))
+        (is (= :s-var (:type (:body generalized))))
+        (is (= (:sym generalized-s-var) (:sym (:body generalized)))) ; Body uses the fresh, generalized s-var
+        (is (= [:number] (:typeclasses (:body generalized))))))))
 
 (deftest mgu-test
   (testing "atomic types"
-    (is (= (u/mgu {:type 'int?} {:type 'int?})
-           {}))
-    (is (= (u/mgu {:type 'int?} {:type 'string?})
-           {:mgu-failure :non-equal
+    (is (= {}
+           (u/mgu {:type 'int?} {:type 'int?})))
+    (is (= {:mgu-failure :non-equal
             :schema-1    {:type 'int?}
-            :schema-2    {:type 'string?}})))
+            :schema-2    {:type 'string?}}
+           (u/mgu {:type 'int?} {:type 'string?}))))
   
   (testing "s-vars"
-    (is (= (u/mgu {:type :s-var :sym 'a}
-                  {:type :s-var :sym 'b})
-           {'a {:type :s-var :sym 'b}}))
-    (is (= (u/mgu {:type 'int?}
-                  {:type :s-var :sym 'a})
-           {'a {:type 'int?}}))
-    (is (= (u/mgu {:type :s-var :sym 'a}
-                  {:type :s-var :sym 'a})
-           {})))
+    (is (= {'a {:type :s-var :sym 'b}}
+           (u/mgu {:type :s-var :sym 'a}
+                  {:type :s-var :sym 'b})))
+    (is (= {'a {:type 'int?}}
+           (u/mgu {:type 'int?}
+                  {:type :s-var :sym 'a})))
+    (is (= {}
+           (u/mgu {:type :s-var :sym 'a}
+                  {:type :s-var :sym 'a}))))
   
   (testing "s-vars with typeclasses"
     (testing "s-var with concrete type - success"
-      (is (= (u/mgu {:type :s-var :sym 'a :typeclasses [:number]} {:type 'int?})
-             {'a {:type 'int?}}))
-      (is (= (u/mgu {:type :s-var :sym 'a :typeclasses [:number :comparable]} {:type 'int?})
-             {'a {:type 'int?}})))
+      (is (= {'a {:type 'int?}}
+             (u/mgu {:type :s-var :sym 'a :typeclasses [:number]} {:type 'int?})))
+      (is (= {'a {:type 'int?}}
+             (u/mgu {:type :s-var :sym 'a :typeclasses [:number :comparable]} {:type 'int?}))))
     
     (testing "s-var with concrete type - failure (typeclass mismatch)"
       (let [s-var {:type :s-var :sym 'a :typeclasses [:countable]}
             concrete-schema {:type 'int?}
             result (u/mgu s-var concrete-schema)]
         (is (u/mgu-failure? result))
-        (is (= (:mgu-failure result) :typeclass-mismatch))
-        (is (= (:schema-1 result) s-var))
-        (is (= (:schema-2 result) concrete-schema))))
+        (is (= :typeclass-mismatch (:mgu-failure result)))
+        (is (= s-var (:schema-1 result)))
+        (is (= concrete-schema (:schema-2 result)))))
     
     (testing "s-var with s-var - success"
       (let [s-var-a {:type :s-var :sym 'a :typeclasses [:number]}
@@ -291,16 +293,16 @@
             s-var-b {:type :s-var :sym 'b :typeclasses [:countable]}
             result (u/mgu s-var-a s-var-b)]
         (is (u/mgu-failure? result))
-        (is (= (:mgu-failure result) :typeclass-mismatch))
+        (is (= :typeclass-mismatch (:mgu-failure result)))
         ;; bind-var(s-var-a, s-var-b) is called, s-var-a's typeclasses are checked against s-var-b
         ;; satisfies-all-typeclasses? for s-var schema (s-var-b) checks if s-var-b's typeclasses
         ;; are a superset of s-var-a's. They are not.
-        (is (= (:schema-1 result) s-var-a))
-        (is (= (:schema-2 result) s-var-b)))
+        (is (= s-var-a (:schema-1 result)))
+        (is (= s-var-b (:schema-2 result))))
       (let [s-var-a {:type :s-var :sym 'a :typeclasses [:number]}
             s-var-b {:type :s-var :sym 'b :typeclasses [:number :countable]} ; b is more specific
             result (u/mgu s-var-a s-var-b)] ; This should succeed, 'a gets bound to 'b
-        (is (= result {'a s-var-b})))
+        (is (= {'a s-var-b} result)))
       (let [s-var-a {:type :s-var :sym 'a :typeclasses [:number :countable]} ; a is more specific
             s-var-b {:type :s-var :sym 'b :typeclasses [:number]}
             result (u/mgu s-var-b s-var-a)] ; This should succeed, 'b gets bound to 'a
@@ -321,23 +323,24 @@
         ;; This should still be an occurs check. The typeclasses on the outer s-var don't prevent it.
         ;; The inner s-var 'a would be bound to the outer 'a which has typeclasses.
         (is (u/mgu-failure? result))
-        (is (= (:mgu-failure result) :occurs-check))
+        (is (= :occurs-check (:mgu-failure result)))
         ;(is (= {:type :s-var :sym 'a} (:schema-1 result))) ;; s-var from occurs check is the one in the structure
         (is (= s-var (:schema-1 result))) ; changes from schema (aka schema-2) to schema-1
         (is (= schema (:schema-2 result))))  ; added schema-2 test
       )) 
 
   (testing "function types"
-    (is (= (u/mgu {:type   :=>,
+    (is (= {'a {:type :s-var :sym 'b}}
+           (u/mgu {:type   :=>,
                    :input  {:type     :cat,
                             :children [{:type :s-var, :sym 'a}]},
                    :output {:type :s-var, :sym 'a}}
                   {:type   :=>,
                    :input  {:type     :cat,
                             :children [{:type :s-var, :sym 'b}]},
-                   :output {:type :s-var, :sym 'b}})
-           {'a {:type :s-var :sym 'b}}))
-    (is (= (u/mgu {:type   :=>,
+                   :output {:type :s-var, :sym 'b}})))
+    (is (= {'a {:type :s-var :sym 'b}}
+           (u/mgu {:type   :=>,
                    :input  {:type     :cat,
                             :children [{:type :s-var, :sym 'a}
                                        {:type :s-var, :sym 'a}]},
@@ -346,9 +349,12 @@
                    :input  {:type     :cat,
                             :children [{:type :s-var, :sym 'b}
                                        {:type :s-var, :sym 'b}]},
-                   :output {:type :s-var, :sym 'b}})
-           {'a {:type :s-var :sym 'b}}))
-    (is (= (u/mgu {:type   :=>,
+                   :output {:type :s-var, :sym 'b}})))
+    (is (= {:mgu-failure :occurs-check
+            :schema-1    {:type :s-var, :sym 'b}
+            :schema-2    {:type  :vector
+                          :child {:type :s-var, :sym 'b}}}
+           (u/mgu {:type   :=>,
                    :input  {:type     :cat,
                             :children [{:type :s-var, :sym 'a}]},
                    :output {:type :s-var, :sym 'a}}
@@ -356,31 +362,27 @@
                    :input  {:type     :cat,
                             :children [{:type :s-var, :sym 'b}]},
                    :output {:type  :vector
-                            :child {:type :s-var, :sym 'b}}})
-           {:mgu-failure :occurs-check
-            :schema-1    {:type :s-var, :sym 'b}
-            :schema-2    {:type  :vector
-                          :child {:type :s-var, :sym 'b}}})))
+                            :child {:type :s-var, :sym 'b}}}))))
   
   (testing "map types"
-    (is (= (u/mgu {:type  :map-of
+    (is (= {'k {:type 'string?}
+            'v {:type 'boolean?}}
+           (u/mgu {:type  :map-of
                    :key   {:type 'string?}
                    :value {:type :s-var, :sym 'v}}
                   {:type  :map-of
                    :key   {:type :s-var, :sym 'k}
-                   :value {:type 'boolean?}})
-           {'k {:type 'string?}
-            'v {:type 'boolean?}})))
+                   :value {:type 'boolean?}}))))
   
   (testing "tuple types"
-    (is (= (u/mgu {:type     :tuple
+    (is (= {'a {:type 'string?}
+            'b {:type 'int?}}
+           (u/mgu {:type     :tuple
                    :children [{:type :s-var, :sym 'a}
                               {:type 'int?}]}
                   {:type     :tuple
                    :children [{:type 'string?}
-                              {:type :s-var, :sym 'b}]})
-           {'a {:type 'string?}
-            'b {:type 'int?}}))
+                              {:type :s-var, :sym 'b}]})))
     (is (u/mgu-failure? (u/mgu {:type     :tuple
                                 :children [{:type :s-var, :sym 'a}
                                            {:type 'int?}
@@ -390,23 +392,24 @@
                                            {:type :s-var, :sym 'b}]}))))
   
   (testing "set types"
-    (is (= (u/mgu {:type :set :child {:type :s-var, :sym 'a}}
-                  {:type :set :child {:type 'int?}})
-           {'a {:type 'int?}})))
+    (is (= {'a {:type 'int?}}
+           (u/mgu {:type :set :child {:type :s-var, :sym 'a}}
+                  {:type :set :child {:type 'int?}}))))
   
   (testing "unification within structured types with typeclasses"
-    (is (= (u/mgu {:type :vector :child {:type :s-var :sym 'a :typeclasses [:number]}}
-                  {:type :vector :child {:type 'int?}})
-           {'a {:type 'int?}}))
+    (is (= {'a {:type 'int?}}
+           (u/mgu {:type :vector :child {:type :s-var :sym 'a :typeclasses [:number]}}
+                  {:type :vector :child {:type 'int?}})))
+    
     (let [s-var-child {:type :s-var :sym 'a :typeclasses [:countable]}
           concrete-child {:type 'int?}
           result (u/mgu {:type :vector :child s-var-child}
                         {:type :vector :child concrete-child})]
       (is (u/mgu-failure? result))
-      (is (= (:mgu-failure result) :typeclass-mismatch))
+      (is (= :typeclass-mismatch (:mgu-failure result)))
       ;; The failure is due to the children, so s-var and schema should reflect that.
-      (is (= (:schema-1 result) s-var-child))
-      (is (= (:schema-2 result) concrete-child)))))
+      (is (= s-var-child (:schema-1 result)))
+      (is (= concrete-child (:schema-2 result))))))
 
 (deftest get-free-s-vars-defs-test
   (testing "simple s-var with typeclass"
